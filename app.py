@@ -93,7 +93,43 @@ def parse_list(text: str) -> list[tuple[str, str]]:
     return pares
 
 
-def build_plan(files: list[str], pares: list[tuple[str, str]], keep_ext: bool):
+def targets_partial(files: list[str], pares: list[tuple[str, str]]):
+    """Cada línea reemplaza un TEXTO dentro del nombre, en todos los archivos que lo contengan.
+    Ej.: VN000D7ZCJJ -> VN000D7ZCJJ_ISR  convierte  VN000D7ZCJJ_1.jpg en VN000D7ZCJJ_ISR_1.jpg"""
+    mapa = {o.lower(): (o, n) for o, n in pares if o and n}
+    if not mapa:
+        return [], {}
+    patron = re.compile(
+        "|".join(re.escape(o) for o, _ in sorted(mapa.values(), key=lambda p: -len(p[0]))), re.I
+    )
+    usados = set()
+
+    def reemplazo(m):
+        o, n = mapa[m.group(0).lower()]
+        usados.add(o.lower())
+        # Si ya se aplicó antes (el nombre ya trae el texto nuevo), no lo duplica
+        if m.string[m.start():].lower().startswith(n.lower()):
+            return m.group(0)
+        return n
+
+    rows, targets = [], {}
+    for f in files:
+        base, ext = get_base(f), get_extension(f)
+        nuevo_base = patron.sub(reemplazo, base)
+        if nuevo_base != base:
+            final = sanitize_base(nuevo_base) + ext
+            targets[f] = final
+            rows.append({"Actual": f, "Nuevo": final, "Estado": None, "_raw": nuevo_base + ext})
+    for clave, (o, n) in mapa.items():
+        if clave not in usados:
+            rows.append({"Actual": o, "Nuevo": n, "Estado": "❌ No aparece en ningún archivo"})
+    return rows, targets
+
+
+def build_plan(files: list[str], pares: list[tuple[str, str]], keep_ext: bool, parcial: bool = False):
+    if parcial:
+        rows, targets = targets_partial(files, pares)
+        return finalize(files, rows, targets)
     exact = set(files)
     lower = {f.lower(): f for f in files}
     by_base: dict[str, list[str]] = {}
@@ -116,7 +152,10 @@ def build_plan(files: list[str], pares: list[tuple[str, str]], keep_ext: bool):
         final = build_new_name(actual, new, keep_ext)
         targets[actual] = final
         rows.append({"Actual": actual, "Nuevo": final, "Estado": None, "_raw": new})
+    return finalize(files, rows, targets)
 
+
+def finalize(files, rows, targets):
     finales = [targets.get(f, f) for f in files]
     choques = {files[i] for i in detect_collisions(finales)}
 
@@ -198,7 +237,17 @@ if files:
 
 # 2. Lista
 st.subheader("2. Lista de nombre actual → nombre nuevo")
-keep_ext = st.checkbox("Mantener la extensión si el nombre nuevo no la trae", value=True)
+alcance = st.radio(
+    "¿Qué reemplaza cada línea?",
+    ["Una parte del nombre", "El nombre completo"],
+    horizontal=True,
+    help="Parte del nombre: 'VN000D7ZCJJ → VN000D7ZCJJ_ISR' cambia VN000D7ZCJJ_1.jpg, _2.jpg, … "
+    "Nombre completo: cada línea es un archivo exacto.",
+)
+parcial = alcance == "Una parte del nombre"
+keep_ext = True
+if not parcial:
+    keep_ext = st.checkbox("Mantener la extensión si el nombre nuevo no la trae", value=True)
 metodo = st.radio("¿Cómo cargas la lista?", ["Pegar lista", "Tabla", "Excel / CSV"], horizontal=True)
 
 pares: list[tuple[str, str]] = []
@@ -210,8 +259,9 @@ if metodo == "Pegar lista":
     )
     pares = parse_list(texto)
 elif metodo == "Tabla":
-    df = pd.DataFrame({COLS[0]: files, COLS[1]: [""] * len(files)})
-    editado = st.data_editor(df, num_rows="dynamic", width="stretch", key=f"ed_{hash(tuple(files))}")
+    base_tabla = [] if parcial else files
+    df = pd.DataFrame({COLS[0]: base_tabla, COLS[1]: [""] * len(base_tabla)})
+    editado = st.data_editor(df, num_rows="dynamic", width="stretch", key=f"ed_{parcial}_{hash(tuple(files))}")
     pares = [(str(a), str(b)) for a, b in editado.fillna("").itertuples(index=False)]
 else:
     hoja = st.file_uploader("Columna A: nombre actual · Columna B: nombre nuevo", type=["xlsx", "xls", "csv"])
@@ -231,7 +281,7 @@ if not files:
 elif not pares:
     st.info("Agrega al menos una fila a la lista.")
 else:
-    preview, plan = build_plan(files, pares, keep_ext)
+    preview, plan = build_plan(files, pares, keep_ext, parcial)
     st.dataframe(preview, width="stretch", hide_index=True)
     errores = int(preview["Estado"].str.startswith("❌").sum())
     st.write(f"**{len(plan)}** listos · **{errores}** con error (no se tocan)")
