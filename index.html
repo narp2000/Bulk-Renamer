@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Renombra · Renombra cientos de archivos con una lista</title>
+<meta name="description" content="Sube tus archivos, pega una lista desde Excel y descarga todo renombrado. Gratis y sin subir nada: todo pasa en tu navegador.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318202E'/%3E%3Crect x='7' y='13' width='18' height='7' rx='2' fill='%23FFE066'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#ECEFF3; --surface:#FFFFFF; --ink:#18202E; --muted:#5B6577; --faint:#8A93A3;
+  --line:#D6DBE3; --line-soft:#E6E9EE;
+  --mark:#FFE066; --mark-ink:#3D3100;
+  --del:#B4233C; --del-bg:#FBE7EA;
+  --ok:#1C7A4B; --warn:#A35A00; --warn-bg:#FFF2DE;
+  --focus:#3557D6;
+  --sans:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* Header */
+.top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none;color:var(--ink)}
+.brand i{width:28px;height:28px;border-radius:8px;background:var(--ink);display:grid;place-items:center}
+.brand i b{width:16px;height:6px;border-radius:2px;background:var(--mark)}
+.privacy{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+.privacy svg{flex:none}
+
+/* Hero */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding:40px 0 56px}
+h1{font-size:clamp(38px,5.4vw,64px);line-height:1.02;letter-spacing:-.035em;font-weight:800;margin:0 0 20px;max-width:14ch}
+.lede{font-size:19px;line-height:1.5;color:var(--muted);margin:0;max-width:44ch}
+.demo{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:22px 24px;box-shadow:0 1px 0 var(--line-soft),0 18px 40px -24px rgba(24,32,46,.35)}
+.demo-rule{font-family:var(--mono);font-size:13px;color:var(--muted);padding:10px 12px;background:var(--bg);border-radius:8px;margin-bottom:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.demo-rule span{color:var(--ink)}
+.demo-row{display:grid;grid-template-columns:64px 1fr;align-items:baseline;gap:8px;padding:8px 0}
+.demo-row+.demo-row{border-top:1px dashed var(--line)}
+.demo-row small{font-size:13px;color:var(--faint)}
+.demo-name{font-family:var(--mono);font-size:clamp(15px,1.6vw,18px);word-break:break-all}
+.demo-cap{margin:16px 0 0;font-size:14px;color:var(--muted)}
+.demo-body{transition:opacity .35s ease}
+.demo-body.out{opacity:0}
+del.d{color:var(--del);background:var(--del-bg);text-decoration:line-through;text-decoration-thickness:1.5px;border-radius:3px;padding:0 1px}
+ins.i{background:var(--mark);color:var(--mark-ink);text-decoration:none;border-radius:3px;padding:0 2px;box-shadow:0 0 0 1px rgba(61,49,0,.08)}
+
+/* Workbench */
+.bench{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px;min-width:0}
+.panel-h{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.step{width:28px;height:28px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.panel h2{font-size:20px;letter-spacing:-.015em;margin:0;font-weight:700}
+.panel-h .aside{margin-left:auto}
+
+.drop{position:relative;border:2px dashed var(--line);border-radius:12px;padding:30px 18px;text-align:center;transition:border-color .15s,background .15s;cursor:pointer}
+.drop:hover{border-color:var(--faint)}
+.drop.over{border-color:var(--ink);background:#F5F7FA}
+.drop strong{display:block;font-size:17px;font-weight:600;margin:10px 0 2px}
+.drop p{margin:0;color:var(--muted);font-size:14px}
+.drop-btns{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.loaded{display:none;align-items:center;gap:14px;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.loaded.on{display:flex}
+.loaded .n{font-size:28px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.loaded .meta{font-size:14px;color:var(--muted);line-height:1.35}
+.loaded .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+
+.flist{list-style:none;margin:12px 0 0;padding:0;max-height:212px;overflow:auto;border:1px solid var(--line-soft);border-radius:10px}
+.flist li{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;font-family:var(--mono);font-size:13px;border-bottom:1px solid var(--line-soft)}
+.flist li:last-child{border-bottom:0}
+.flist li span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.flist li em{font-style:normal;color:var(--faint)}
+.flist .x{border:0;background:none;color:var(--faint);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:16px;line-height:1;flex:none}
+.flist .x:hover{background:var(--del-bg);color:var(--del)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 16px;font-size:15px;font-weight:500;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.btn:hover{background:#F3F5F8;border-color:#C5CCD7}
+.btn.sm{padding:6px 12px;font-size:14px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.btn.ghost:hover{background:#F0F2F5;color:var(--ink)}
+.btn.primary{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600;padding:11px 20px}
+.btn.primary:hover{background:#2A3447}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.seg{display:inline-grid;grid-auto-flow:column;background:var(--bg);border-radius:10px;padding:4px;gap:4px;width:100%}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg span{display:block;text-align:center;padding:8px 10px;border-radius:7px;font-size:15px;font-weight:500;color:var(--muted)}
+.seg input:checked+span{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(24,32,46,.12)}
+.seg input:focus-visible+span{outline:3px solid var(--focus);outline-offset:1px}
+.hint{font-size:14px;color:var(--muted);margin:10px 0 14px;min-height:42px}
+.hint code{font-family:var(--mono);font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px;color:var(--ink)}
+
+textarea{width:100%;min-height:208px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:var(--mono);font-size:14px;line-height:1.65;background:#FBFCFD;tab-size:4}
+textarea:focus{outline:none;border-color:var(--ink);box-shadow:0 0 0 3px rgba(53,87,214,.18)}
+.under{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.under .count{font-size:14px;color:var(--muted);margin-right:auto}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--ink)}
+.keep{margin-top:12px}
+
+/* Preview */
+.preview{margin-top:20px;padding:0;overflow:hidden}
+.preview .panel-h{padding:22px 22px 0}
+.tabs{display:flex;gap:6px;padding:16px 22px 14px;border-bottom:1px solid var(--line-soft);flex-wrap:wrap}
+.tab{border:1px solid transparent;background:none;border-radius:999px;padding:6px 12px;font-size:14px;font-weight:500;color:var(--muted);cursor:pointer}
+.tab b{font-weight:600;color:var(--ink);margin-left:4px}
+.tab[aria-selected=true]{background:var(--ink);color:#fff}
+.tab[aria-selected=true] b{color:var(--mark)}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:grid;grid-template-columns:14px minmax(0,1fr) 24px minmax(0,1fr);align-items:center;gap:12px;padding:11px 22px;border-bottom:1px solid var(--line-soft)}
+.row:last-child{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.row.ok .dot{background:var(--ok)}
+.row.bad .dot{background:var(--del)}
+.row.bad{background:#FFF8F9}
+.fn{font-family:var(--mono);font-size:14px;overflow-wrap:anywhere;line-height:1.45}
+.fn .dir{color:var(--faint)}
+.row.idle .fn{color:var(--muted)}
+.arrow{color:var(--faint);text-align:center}
+.why{grid-column:2/-1;font-size:13px;margin-top:-4px;color:var(--del)}
+.row.ok .why{color:var(--warn)}
+.empty{padding:44px 22px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-size:17px;margin-bottom:4px;font-weight:600}
+.more{display:block;margin:0 auto 18px}
+
+/* Action bar */
+.bar{position:sticky;bottom:16px;z-index:5;margin:20px 0 0;background:var(--ink);color:#fff;border-radius:16px;padding:14px 16px 14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 20px 40px -18px rgba(24,32,46,.6)}
+.bar .sum{font-size:15px;margin-right:auto}
+.bar .sum b{font-size:18px}
+.bar .sum .warnc{color:#FFB4C0;margin-left:10px}
+.bar .chk{color:#C9D0DC}
+.bar .btn{background:transparent;border-color:#3D4860;color:#fff}
+.bar .btn:hover{background:#25304A}
+.bar .btn.primary{background:var(--mark);border-color:var(--mark);color:var(--ink)}
+.bar .btn.primary:hover{background:#FFE98A}
+
+footer{padding:56px 0 40px;color:var(--muted);font-size:14px;display:flex;gap:24px;justify-content:space-between;flex-wrap:wrap}
+footer a{color:inherit}
+
+.toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,12px);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 18px;font-size:15px;box-shadow:0 14px 30px -12px rgba(24,32,46,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;max-width:calc(100% - 32px)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:28px;padding:20px 0 36px}
+  .bench{grid-template-columns:1fr}
+  .privacy span{display:none}
+}
+@media (max-width:620px){
+  .wrap{padding:0 16px}
+  .row{grid-template-columns:14px minmax(0,1fr);gap:4px 10px}
+  .row .arrow{display:none}
+  .row .fn.new{grid-column:2}
+  .why{grid-column:2}
+  .bar{padding:12px 14px;gap:10px;bottom:10px}
+  .bar .sum{width:100%}
+  .bar #saveDir{display:none}
+  .bar .btn.primary{margin-left:auto}
+  .loaded{flex-wrap:wrap}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./"><i><b></b></i>Renombra</a>
+    <div class="privacy">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <span>Tus archivos nunca salen de tu computadora</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Renombra cientos de archivos con una lista.</h1>
+      <p class="lede">Sube tus archivos, pega los nombres desde Excel y descarga todo renombrado. Gratis, sin cuenta y sin subir nada: todo pasa en tu navegador.</p>
+    </div>
+    <div class="demo" aria-hidden="true">
+      <div class="demo-body" id="demoBody"></div>
+    </div>
+  </section>
+
+  <main>
+    <div class="bench">
+      <section class="panel" aria-labelledby="h-files">
+        <div class="panel-h"><span class="step">1</span><h2 id="h-files">Agrega tus archivos</h2></div>
+        <div class="drop" id="drop" tabindex="0" role="button" aria-label="Agregar archivos">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+          <strong>Arrastra archivos o carpetas aquí</strong>
+          <p>Cualquier tipo de archivo, sin límite de cantidad</p>
+          <div class="drop-btns">
+            <button class="btn sm" type="button" id="pickFiles">Elegir archivos</button>
+            <button class="btn sm" type="button" id="pickFolder">Elegir una carpeta</button>
+          </div>
+        </div>
+        <div class="loaded" id="loaded">
+          <div class="n" id="nFiles">0</div>
+          <div class="meta" id="metaFiles"></div>
+          <div class="acts">
+            <button class="btn sm" type="button" id="addMore">Agregar más</button>
+            <button class="btn sm ghost" type="button" id="clearFiles">Quitar todo</button>
+          </div>
+        </div>
+        <ul class="flist" id="flist" hidden></ul>
+        <input type="file" id="inFiles" multiple hidden>
+        <input type="file" id="inFolder" webkitdirectory multiple hidden>
+      </section>
+
+      <section class="panel" aria-labelledby="h-list">
+        <div class="panel-h"><span class="step">2</span><h2 id="h-list">Pega tu lista</h2></div>
+        <div class="seg" role="radiogroup" aria-label="Qué cambia cada línea">
+          <label><input type="radio" name="mode" value="partial" checked><span>Cambiar una parte del nombre</span></label>
+          <label><input type="radio" name="mode" value="full"><span>Cambiar el nombre completo</span></label>
+        </div>
+        <p class="hint" id="hint"></p>
+        <label class="sr" for="list">Lista de nombres</label>
+        <textarea id="list" spellcheck="false" autocomplete="off"></textarea>
+        <div class="under">
+          <span class="count" id="lineCount">Pega dos columnas desde Excel, o separa con coma o punto y coma.</span>
+          <button class="btn sm" type="button" id="copyNames" disabled>Copiar nombres actuales</button>
+          <button class="btn sm ghost" type="button" id="importBtn">Importar CSV</button>
+          <input type="file" id="inCsv" accept=".csv,.txt,text/csv,text/plain" hidden>
+        </div>
+        <label class="chk keep" id="keepWrap" hidden><input type="checkbox" id="keepExt" checked> Mantener la extensión si el nombre nuevo no la trae</label>
+      </section>
+    </div>
+
+    <section class="panel preview" aria-labelledby="h-prev">
+      <div class="panel-h"><span class="step">3</span><h2 id="h-prev">Revisa cómo quedan</h2></div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <ul class="rows" id="rows"></ul>
+      <button class="btn sm more" type="button" id="more" hidden>Mostrar más</button>
+    </section>
+
+    <div class="bar" id="bar" hidden>
+      <div class="sum" aria-live="polite" id="sum"></div>
+      <label class="chk"><input type="checkbox" id="onlyChanged"> Solo los que cambian</label>
+      <button class="btn" type="button" id="saveDir" hidden>Guardar en una carpeta</button>
+      <button class="btn primary" type="button" id="dlZip">Descargar ZIP</button>
+    </div>
+  </main>
+
+  <footer>
+    <span>Renombra funciona sin conexión una vez cargada. Nada se sube a ningún servidor.</span>
+    <span>Validaciones basadas en <a href="https://github.com/adityasingh031901-star/bulk-rename-core" rel="noopener">bulk-rename-core</a> (MIT).</span>
+  </footer>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = (id) => document.getElementById(id);
+const IGNORE = new Set([".ds_store", "thumbs.db", "desktop.ini"]);
+
+/* ---------- Lógica de nombres (portada de bulk-rename-core) ---------- */
+const ILLEGAL = /[<>:"/\\|?*\x00-\x1f]/g;
+const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const getExt = (n) => { const d = n.lastIndexOf("."); return d > 0 && d < n.length - 1 ? n.slice(d) : ""; };
+const getBase = (n) => { const d = n.lastIndexOf("."); return d > 0 ? n.slice(0, d) : n; };
+function sanitizeBase(b) {
+  let s = (b || "").replace(ILLEGAL, "").replace(/[\s.]+$/g, "").trim();
+  if (RESERVED.test(s)) s = "_" + s;
+  if (s.length > 180) s = s.slice(0, 180).trim();
+  return s || "unnamed";
+}
+const looksExt = (e) => e.length > 1 && e.length <= 6 && /^\.[a-z0-9]+$/i.test(e) && /[a-z]/i.test(e);
+function buildFull(oldName, nw, keepExt) {
+  let ext = getExt(nw), base;
+  if (looksExt(ext)) base = getBase(nw);
+  else { base = nw; ext = keepExt ? getExt(oldName) : ""; }
+  return sanitizeBase(base) + ext.replace(ILLEGAL, "").slice(0, 24);
+}
+const HEADERS = new Set(["old","old name","nombre actual","actual","original","nombre","name","antes","buscar"]);
+function parseList(text) {
+  const out = [];
+  for (let line of text.split(/\r?\n/)) {
+    line = line.trim();
+    if (!line) continue;
+    let pair = null;
+    for (const sep of ["\t", ";", "->", "→", ","]) {
+      const i = line.indexOf(sep);
+      if (i > -1) { pair = [line.slice(0, i), line.slice(i + sep.length)]; break; }
+    }
+    if (!pair) continue;
+    const a = pair[0].trim().replace(/^"|"$/g, ""), b = pair[1].trim().replace(/^"|"$/g, "");
+    if (!a || !b || HEADERS.has(a.toLowerCase())) continue;
+    out.push([a, b]);
+  }
+  return out;
+}
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/* ---------- Estado ---------- */
+const state = { files: [], mode: "partial", keepExt: true, filter: "all", limit: 250, result: null };
+let seenKeys = new Set();
+
+function addFiles(list) {
+  let added = 0;
+  for (const { file, dir } of list) {
+    if (IGNORE.has(file.name.toLowerCase())) continue;
+    const key = dir + "/" + file.name + "|" + file.size + "|" + file.lastModified;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    state.files.push({ file, dir, name: file.name });
+    added++;
+  }
+  if (added) toast(`${added} ${added === 1 ? "archivo agregado" : "archivos agregados"}`);
+  update();
+}
+
+/* ---------- Cálculo del plan ---------- */
+function compute() {
+  const pairs = parseList($("list").value);
+  const files = state.files;
+  const target = new Map(); // idx -> final
+  const lineIssues = [];
+
+  if (state.mode === "partial") {
+    const map = new Map();
+    for (const [o, n] of pairs) { const k = o.toLowerCase(); if (map.has(k)) lineIssues.push({ o, n, why: "Línea repetida: se usa la primera" }); else map.set(k, [o, n]); }
+    if (map.size) {
+      const re = new RegExp([...map.values()].map(p => p[0]).sort((a, b) => b.length - a.length).map(escRe).join("|"), "gi");
+      const used = new Set();
+      files.forEach((f, i) => {
+        const base = getBase(f.name), ext = getExt(f.name);
+        const nb = base.replace(re, (m, off, str) => {
+          const [, n] = map.get(m.toLowerCase());
+          used.add(m.toLowerCase());
+          return str.slice(off).toLowerCase().startsWith(n.toLowerCase()) ? m : n;
+        });
+        if (nb !== base) target.set(i, { final: sanitizeBase(nb) + ext, raw: nb + ext });
+      });
+      for (const [k, [o, n]] of map) if (!used.has(k)) lineIssues.push({ o, n, why: "Este texto no aparece en ningún archivo" });
+    }
+  } else {
+    const byName = new Map(), byLower = new Map(), byBase = new Map();
+    files.forEach((f, i) => {
+      const push = (m, k) => { if (!m.has(k)) m.set(k, []); m.get(k).push(i); };
+      push(byName, f.name); push(byLower, f.name.toLowerCase()); push(byBase, getBase(f.name).toLowerCase());
+    });
+    const done = new Set();
+    for (const [o, n] of pairs) {
+      const idxs = byName.get(o) || byLower.get(o.toLowerCase()) || byBase.get(o.toLowerCase());
+      if (!idxs) { lineIssues.push({ o, n, why: "No hay ningún archivo con este nombre" }); continue; }
+      const k = o.toLowerCase();
+      if (done.has(k)) { lineIssues.push({ o, n, why: "Línea repetida: se usa la primera" }); continue; }
+      done.add(k);
+      for (const i of idxs) {
+        const final = buildFull(files[i].name, n, state.keepExt);
+        target.set(i, { final, raw: [n, n + getExt(files[i].name)] });
+      }
+    }
+  }
+
+  // Choques: mismo nombre final en la misma carpeta (sin distinguir mayúsculas)
+  const finals = files.map((f, i) => (target.get(i)?.final ?? f.name));
+  const groups = new Map();
+  finals.forEach((n, i) => { const k = files[i].dir + "/" + n.toLowerCase(); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); });
+  const clash = new Set();
+  for (const g of groups.values()) if (g.length > 1) g.forEach(i => clash.add(i));
+
+  const rows = [], plan = new Map();
+  files.forEach((f, i) => {
+    const t = target.get(i);
+    if (!t) { rows.push({ type: "idle", i, old: f.name, nw: f.name, why: "" }); return; }
+    if (t.final === f.name) { rows.push({ type: "idle", i, old: f.name, nw: f.name, why: "Ya tiene ese nombre" }); return; }
+    if (clash.has(i)) { rows.push({ type: "bad", i, old: f.name, nw: t.final, why: "Quedaría con el mismo nombre que otro archivo de la carpeta" }); return; }
+    const raws = Array.isArray(t.raw) ? t.raw : [t.raw];
+    const cleaned = !raws.includes(t.final);
+    rows.push({ type: "ok", i, old: f.name, nw: t.final, why: cleaned ? "Se quitaron caracteres que no se pueden usar en un nombre" : "" });
+    plan.set(i, t.final);
+  });
+  for (const li of lineIssues) rows.push({ type: "bad", line: true, old: li.o, nw: li.n, why: li.why });
+
+  const order = { bad: 0, ok: 1, idle: 2 };
+  rows.sort((a, b) => order[a.type] - order[b.type]);
+  return { rows, plan, pairs };
+}
+
+/* ---------- Render ---------- */
+const esc = (s) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function diff(a, b) {
+  let p = 0; const max = Math.min(a.length, b.length);
+  while (p < max && a[p] === b[p]) p++;
+  let s = 0;
+  while (s < max - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+  // Alinear inserciones/borrados puros a la izquierda (VN_1 -> VN_ISR_1 resalta "_ISR")
+  if (a.length - s === p) { while (p > 0 && b[b.length - s - 1] === a[p - 1]) { p--; s++; } }
+  else if (b.length - s === p) { while (p > 0 && a[a.length - s - 1] === b[p - 1]) { p--; s++; } }
+  const am = a.slice(p, a.length - s), bm = b.slice(p, b.length - s);
+  return [
+    esc(a.slice(0, p)) + (am ? `<del class="d">${esc(am)}</del>` : "") + esc(a.slice(a.length - s)),
+    esc(b.slice(0, p)) + (bm ? `<ins class="i">${esc(bm)}</ins>` : "") + esc(b.slice(b.length - s)),
+  ];
+}
+
+const FILTERS = [
+  ["all", "Todos", () => true],
+  ["ok", "Cambian", r => r.type === "ok"],
+  ["bad", "Por revisar", r => r.type === "bad"],
+  ["idle", "Sin cambios", r => r.type === "idle"],
+];
+
+function update() {
+  const has = state.files.length > 0;
+  $("drop").style.display = has ? "none" : "";
+  $("loaded").classList.toggle("on", has);
+  $("copyNames").disabled = !has;
+  $("flist").hidden = !has;
+  if (has) {
+    const total = state.files.reduce((s, f) => s + f.file.size, 0);
+    const dirs = new Set(state.files.map(f => f.dir).filter(Boolean)).size;
+    $("nFiles").textContent = state.files.length;
+    const shownF = state.files.slice(0, 400);
+    $("flist").innerHTML = shownF.map((f) => `<li><span title="${esc((f.dir ? f.dir + "/" : "") + f.name)}">${f.dir ? `<em>${esc(f.dir)}/</em>` : ""}${esc(f.name)}</span><button class="x" type="button" data-k="${state.files.indexOf(f)}" aria-label="Quitar ${esc(f.name)}">×</button></li>`).join("") + (state.files.length > 400 ? `<li><em>y ${state.files.length - 400} más</em></li>` : "");
+    $("metaFiles").innerHTML = `${state.files.length === 1 ? "archivo" : "archivos"}<br>${fmtSize(total)}${dirs ? ` en ${dirs} ${dirs === 1 ? "carpeta" : "carpetas"}` : ""}`;
+  }
+  const res = state.result = compute();
+  const n = res.pairs.length;
+  $("lineCount").textContent = n ? `${n} ${n === 1 ? "línea reconocida" : "líneas reconocidas"}` : "Pega dos columnas desde Excel, o separa con coma o punto y coma.";
+  renderTabs(res); renderRows(res); renderBar(res);
+}
+
+function renderTabs(res) {
+  const tabs = $("tabs");
+  tabs.hidden = !state.files.length && !res.rows.length;
+  tabs.innerHTML = FILTERS.map(([k, label, fn]) => {
+    const c = res.rows.filter(fn).length;
+    return `<button class="tab" role="tab" type="button" data-f="${k}" aria-selected="${state.filter === k}">${label}<b>${c}</b></button>`;
+  }).join("");
+}
+
+function renderRows(res) {
+  const ul = $("rows");
+  if (!state.files.length && !res.rows.length) {
+    ul.innerHTML = `<li class="empty"><strong>Aquí verás el antes y el después</strong>Agrega archivos y pega tu lista. Nada cambia hasta que descargues.</li>`;
+    $("more").hidden = true; return;
+  }
+  const fn = FILTERS.find(f => f[0] === state.filter)[2];
+  const list = res.rows.filter(fn);
+  if (!list.length) {
+    const msg = { ok: "Ningún archivo cambia todavía. Revisa que el texto de tu lista coincida con los nombres.", bad: "Todo en orden: no hay nada por revisar.", idle: "Todos los archivos cambian.", all: "" }[state.filter];
+    ul.innerHTML = `<li class="empty">${msg}</li>`; $("more").hidden = true; return;
+  }
+  const shown = list.slice(0, state.limit);
+  ul.innerHTML = shown.map(r => {
+    const dir = r.line ? "" : state.files[r.i].dir;
+    const pre = dir ? `<span class="dir">${esc(dir)}/</span>` : "";
+    let a, b;
+    if (r.type === "idle") { a = esc(r.old); b = esc(r.nw); }
+    else if (r.line) { a = esc(r.old); b = esc(r.nw); }
+    else [a, b] = diff(r.old, r.nw);
+    const why = r.why ? `<div class="why">${esc(r.why)}</div>` : "";
+    return `<li class="row ${r.type}"><span class="dot" aria-hidden="true"></span><div class="fn">${pre}${a}</div><div class="arrow" aria-hidden="true">→</div><div class="fn new">${r.type === "idle" ? `<span class="dir">sin cambio</span>` : pre + b}</div>${why}</li>`;
+  }).join("");
+  $("more").hidden = list.length <= state.limit;
+  $("more").textContent = `Mostrar más (${list.length - state.limit} restantes)`;
+}
+
+function renderBar(res) {
+  const bar = $("bar");
+  bar.hidden = !state.files.length;
+  const ok = res.plan.size, bad = res.rows.filter(r => r.type === "bad").length;
+  $("sum").innerHTML = `<b>${ok}</b> ${ok === 1 ? "archivo cambia" : "archivos cambian"}${bad ? `<span class="warnc">${bad} por revisar</span>` : ""}`;
+  const outCount = $("onlyChanged").checked ? ok : state.files.length;
+  $("dlZip").disabled = !ok;
+  $("saveDir").disabled = !ok;
+  $("dlZip").textContent = `Descargar ZIP (${outCount})`;
+}
+
+/* ---------- Entradas ---------- */
+const drop = $("drop");
+drop.addEventListener("click", (e) => { if (e.target.closest("button")) return; $("inFiles").click(); });
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("inFiles").click(); } });
+$("pickFiles").onclick = () => $("inFiles").click();
+$("pickFolder").onclick = () => $("inFolder").click();
+$("addMore").onclick = () => $("inFiles").click();
+$("flist").addEventListener("click", (e) => {
+  const b = e.target.closest(".x"); if (!b) return;
+  const f = state.files.splice(+b.dataset.k, 1)[0];
+  seenKeys.delete(f.dir + "/" + f.file.name + "|" + f.file.size + "|" + f.file.lastModified);
+  update();
+});
+$("clearFiles").onclick = () => { state.files = []; seenKeys = new Set(); update(); };
+$("inFiles").onchange = (e) => { addFiles([...e.target.files].map(file => ({ file, dir: "" }))); e.target.value = ""; };
+$("inFolder").onchange = (e) => {
+  addFiles([...e.target.files].map(file => { const p = file.webkitRelativePath || file.name; return { file, dir: p.split("/").slice(0, -1).join("/") }; }));
+  e.target.value = "";
+};
+
+let dragDepth = 0;
+window.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; drop.classList.add("over"); });
+window.addEventListener("dragleave", () => { if (--dragDepth <= 0) { dragDepth = 0; drop.classList.remove("over"); } });
+window.addEventListener("dragover", (e) => e.preventDefault());
+window.addEventListener("drop", async (e) => {
+  e.preventDefault(); dragDepth = 0; drop.classList.remove("over");
+  const items = [...(e.dataTransfer.items || [])];
+  const entries = items.map(it => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+  if (!entries.length) { addFiles([...e.dataTransfer.files].map(file => ({ file, dir: "" }))); return; }
+  const out = [];
+  await Promise.all(entries.map(en => walk(en, out)));
+  addFiles(out);
+});
+function walk(entry, out) {
+  if (entry.isFile) return new Promise(res => entry.file(file => {
+    out.push({ file, dir: entry.fullPath.replace(/^\//, "").split("/").slice(0, -1).join("/") }); res();
+  }, res));
+  if (entry.isDirectory) {
+    const reader = entry.createReader();
+    return new Promise(res => {
+      const all = [];
+      const read = () => reader.readEntries(async (batch) => {
+        if (!batch.length) { await Promise.all(all.map(c => walk(c, out))); res(); }
+        else { all.push(...batch); read(); }
+      }, res);
+      read();
+    });
+  }
+  return Promise.resolve();
+}
+
+const HINTS = {
+  partial: 'Cada línea busca un texto dentro de los nombres y lo cambia en todos los archivos que lo tengan. Ej.: <code>VN000D7ZCJJ → VN000D7ZCJJ_ISR</code>',
+  full: 'Cada línea es un archivo: nombre actual y nombre nuevo. Puedes omitir la extensión. Ej.: <code>IMG_4821.jpg → factura-enero</code>',
+};
+const PLACE = {
+  partial: "VN000D7ZCJJ\tVN000D7ZCJJ_ISR\nVN000EB7YJ7\tVN000EB7YJ7_ISS\nVN000V7410Z\tVN000V7410Z_ISV",
+  full: "IMG_4821.jpg\tfactura-enero\nIMG_4822.jpg\tfactura-febrero\nscan 3.pdf\tcontrato-cliente",
+};
+function setMode(m) {
+  state.mode = m;
+  $("hint").innerHTML = HINTS[m];
+  $("list").placeholder = PLACE[m];
+  $("keepWrap").hidden = m !== "full";
+  update();
+}
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener("change", () => setMode(r.value)));
+$("keepExt").onchange = (e) => { state.keepExt = e.target.checked; update(); };
+let t;
+$("list").addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { state.limit = 250; update(); }, 120); });
+$("importBtn").onclick = () => $("inCsv").click();
+$("inCsv").onchange = async (e) => { const f = e.target.files[0]; if (!f) return; $("list").value = await f.text(); e.target.value = ""; update(); toast(`Lista importada de ${f.name}`); };
+$("copyNames").onclick = async () => {
+  const names = [...new Set(state.files.map(f => state.mode === "partial" ? getBase(f.name) : f.name))].join("\n");
+  try { await navigator.clipboard.writeText(names); toast("Nombres copiados. Pégalos en Excel y escribe al lado los nuevos."); }
+  catch { toast("No se pudo copiar. Tu navegador bloqueó el portapapeles."); }
+};
+$("tabs").addEventListener("click", (e) => { const b = e.target.closest(".tab"); if (!b) return; state.filter = b.dataset.f; state.limit = 250; renderTabs(state.result); renderRows(state.result); });
+$("more").onclick = () => { state.limit += 500; renderRows(state.result); };
+$("onlyChanged").onchange = () => renderBar(state.result);
+
+/* ---------- Salida ---------- */
+function outputs() {
+  const only = $("onlyChanged").checked, plan = state.result.plan;
+  const out = [];
+  state.files.forEach((f, i) => {
+    if (only && !plan.has(i)) return;
+    out.push({ file: f.file, dir: f.dir, name: plan.get(i) ?? f.name });
+  });
+  return out;
+}
+
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function dosTime(ms) {
+  const d = new Date(ms || Date.now()); const y = Math.max(1980, d.getFullYear());
+  return { time: (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date: ((y - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate() };
+}
+async function buildZip(items, onProgress) {
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0, cdSize = 0;
+  const used = new Set();
+  for (let k = 0; k < items.length; k++) {
+    const it = items[k];
+    let path = (it.dir ? it.dir + "/" : "") + it.name, n = 2;
+    while (used.has(path.toLowerCase())) path = (it.dir ? it.dir + "/" : "") + getBase(it.name) + ` (${n++})` + getExt(it.name);
+    used.add(path.toLowerCase());
+    const data = new Uint8Array(await it.file.arrayBuffer());
+    const crc = crc32(data), name = enc.encode(path), { time, date } = dosTime(it.file.lastModified);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+    lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(lh.buffer, name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+    ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+    ch.setUint32(42, offset, true);
+    central.push(ch.buffer, name);
+    offset += 30 + name.length + data.length; cdSize += 46 + name.length;
+    onProgress(k + 1, items.length);
+    if (k % 5 === 4) await new Promise(r => setTimeout(r));
+  }
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, items.length, true); end.setUint16(10, items.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+}
+
+$("dlZip").onclick = async () => {
+  const btn = $("dlZip"), items = outputs(), changed = state.result.plan.size;
+  btn.disabled = true;
+  try {
+    const blob = await buildZip(items, (i, n) => { btn.textContent = `Preparando ZIP… ${Math.round(i / n * 100)}%`; });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "renombrados.zip"; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    toast(`ZIP descargado: ${changed} ${changed === 1 ? "archivo renombrado" : "archivos renombrados"}`);
+  } catch (err) { toast("No se pudo crear el ZIP: " + err.message); }
+  renderBar(state.result);
+};
+
+if ("showDirectoryPicker" in window) $("saveDir").hidden = false;
+$("saveDir").onclick = async () => {
+  let root;
+  try { root = await window.showDirectoryPicker({ mode: "readwrite" }); } catch { return; }
+  const btn = $("saveDir"), items = outputs(), label = btn.textContent;
+  btn.disabled = true;
+  try {
+    for (let k = 0; k < items.length; k++) {
+      const it = items[k];
+      let dh = root;
+      for (const seg of it.dir.split("/").filter(Boolean)) dh = await dh.getDirectoryHandle(seg, { create: true });
+      let name = it.name, n = 2;
+      while (await exists(dh, name)) name = getBase(it.name) + ` (${n++})` + getExt(it.name);
+      const fh = await dh.getFileHandle(name, { create: true });
+      const w = await fh.createWritable(); await w.write(it.file); await w.close();
+      btn.textContent = `Guardando… ${k + 1}/${items.length}`;
+    }
+    toast(`Guardado en la carpeta “${root.name}”: ${items.length} ${items.length === 1 ? "archivo" : "archivos"}`);
+  } catch (err) { toast("No se pudo guardar: " + err.message); }
+  btn.textContent = label; renderBar(state.result);
+};
+async function exists(dh, name) { try { await dh.getFileHandle(name); return true; } catch { return false; } }
+
+/* ---------- Utilidades ---------- */
+function fmtSize(b) { const u = ["B", "KB", "MB", "GB"]; let i = 0; while (b >= 1024 && i < 3) { b /= 1024; i++; } return (i ? b.toFixed(1) : b) + " " + u[i]; }
+let tt;
+function toast(msg) { const el = $("toast"); el.textContent = msg; el.classList.add("on"); clearTimeout(tt); tt = setTimeout(() => el.classList.remove("on"), 2800); }
+
+/* ---------- Demo del encabezado ---------- */
+const DEMOS = [
+  { rule: ["VN000D7ZCJJ", "VN000D7ZCJJ_ISR"], a: "VN000D7ZCJJ_1.jpg", b: "VN000D7ZCJJ_ISR_1.jpg", cap: "Cambia una parte del nombre en todas las fotos de un producto." },
+  { rule: ["IMG_4821.jpg", "factura-enero"], a: "IMG_4821.jpg", b: "factura-enero.jpg", cap: "O cambia el nombre completo, archivo por archivo." },
+  { rule: ["scan 3", "contrato:cliente?"], a: "scan 3.pdf", b: "contratocliente.pdf", cap: "Los caracteres que Windows no acepta se quitan solos." },
+];
+let di = 0;
+function showDemo() {
+  const d = DEMOS[di], [a, b] = diff(d.a, d.b);
+  $("demoBody").innerHTML =
+    `<div class="demo-rule">Tu lista: <span>${esc(d.rule[0])}</span> → <span>${esc(d.rule[1])}</span></div>
+     <div class="demo-row"><small>Antes</small><div class="demo-name">${a}</div></div>
+     <div class="demo-row"><small>Después</small><div class="demo-name">${b}</div></div>
+     <p class="demo-cap">${d.cap}</p>`;
+}
+showDemo();
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  setInterval(() => {
+    const body = $("demoBody"); body.classList.add("out");
+    setTimeout(() => { di = (di + 1) % DEMOS.length; showDemo(); body.classList.remove("out"); }, 350);
+  }, 4200);
+}
+
+setMode("partial");
+})();
+</script>
+</body>
+</html>
